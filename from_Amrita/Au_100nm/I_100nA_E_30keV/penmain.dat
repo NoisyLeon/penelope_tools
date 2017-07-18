@@ -1,0 +1,73 @@
+
+
+   *************************************************************
+   **   Program PENMAIN.  Input data and run-time messages.   **
+   *************************************************************
+
+   Date and time: 17th Jun 2017. 04:03:05
+
+   Homogeneous Au cylinder.                                         
+
+   ------------------------------------------------------------------------
+   >>>>>>  Source description.
+
+   Primary particles: electrons
+   Initial energy =  3.000000E+04 eV
+
+   Coordinates of centre:     SX0 =  0.000000E+00 cm
+                              SY0 =  0.000000E+00 cm
+                              SZ0 = -4.000000E-01 cm
+
+   *** Conical beam:
+   Beam axis direction:     THETA =  0.000000E+00 deg
+                              PHI =  0.000000E+00 deg
+   Beam aperture:           ALPHA =  3.063200E-04 deg
+
+   Maximum particle energy =  3.000000E+04 eV
+
+   ------------------------------------------------------------------------
+   >>>>>>  Material data and simulation parameters.
+
+   ****  1st material
+   Material data file: Au.mat              
+   Electron absorption energy =  2.000000E+02 eV
+     Photon absorption energy =  5.000000E+01 eV
+   Positron absorption energy =  2.000000E+02 eV
+   Electron-positron simulation parameters:
+    C1 = 2.000000E-01,      C2 = 2.000000E-01
+   Wcc = 2.000000E+02 eV,  Wcr = 5.000000E+01 eV
+
+   ------------------------------------------------------------------------
+   >>>>>>  Geometry definition.
+   PENGEOM's geometry file: Au_100nm.geo        
+
+         Maximum allowed step lengths of electrons and positrons
+         and local absorption energies (non-void bodies).
+
+   Body   DSMAX(IB)    EABSB(1,IB)   EABSB(2,IB)   EABSB(3,IB)
+    IB       (cm)          (eV)          (eV)          (eV)
+      1  1.000000E-07  2.000000E+02  5.000000E+01  2.000000E+02
+
+   ------------------------------------------------------------------------
+   >>>>>>  Energy and angular distributions of emerging particles.
+   E:       NBE = 100,  EMIN = 0.000000E+00 eV,  EMAX = 3.000000E+04 eV
+            (linear scale, uniform bin width)
+   Theta:  NBTH =  90 (linear scale)
+   Phi:    NBPH =   1
+
+   ------------------------------------------------------------------------
+   >>>>>>  Job characteristics.
+   Resume simulation from previous dump file: dump.dat            
+   Write final counter values on the dump file: dump.dat            
+   Dumping period: DUMPP = 6.000000E+01
+   Random-number generator seeds =          1,          1
+
+   Number of showers to be simulated = 1.000000E+07
+   Computation time available =  1.000000E+09 sec
+
+   ------------------------------------------------------------------------
+   WARNING: Could not resume from dump file...
+
+   ***  END  ***
+
+   ------------------------------------------------------------------------

@@ -1,0 +1,28 @@
+
+ **********************************
+ **   PENELOPE  (version 2014)   **
+ **********************************
+
+ EMIN = 5.0000E+01 eV,  EMAX = 3.0000E+04 eV
+
+
+ **********************
+ **   1st material   **
+ **********************
+
+ Material data file: Au.mat              
+
+ *** Simulation parameters:
+     Electron absorption energy = 2.0000E+02 eV
+       Photon absorption energy = 5.0000E+01 eV
+     Positron absorption energy = 2.0000E+02 eV
+      C1 = 2.0000E-01,       C2 = 2.0000E-01
+     WCC = 2.0000E+02 eV,   WCR = 5.0000E+01 eV
+
+ PENELOPE (v. 2014)  Material data file ...............
+ Material: Au                                                            
+ Mass density = 1.93200000E+01 g/cm**3
+ Number of elements in the molecule =  1
+    Element: Au (Z=79), atoms/molecule = 1.00000000E+00
+ Mean excitation energy = 7.90000000E+02 eV
+ PENELOPE (v. 2014)  End of material data file ........

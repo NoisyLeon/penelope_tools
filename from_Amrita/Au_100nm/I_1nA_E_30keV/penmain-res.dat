@@ -1,0 +1,58 @@
+
+
+   ***********************************
+   **   Program PENMAIN. Results.   **
+   ***********************************
+
+   Date and time: 17th Jun 2017. 01:35:22
+
+   Homogeneous Au cylinder.                                         
+
+   Simulation time .........................  1.774783E+03 sec
+   Simulation speed ........................  5.634491E+03 showers/sec
+
+
+   Simulated primary particles .............  1.000000E+07
+
+   Primary particles: electrons
+
+   Upbound primary particles ...............  8.344057E+06
+   Downbound primary particles .............  1.652034E+06
+   Absorbed primary particles ..............  3.909000E+03
+
+   Upbound fraction ...................  8.469665E-01 +- 4.7E-04
+   Downbound fraction .................  1.739113E-01 +- 4.5E-04
+   Absorption fraction ................  3.909000E-04 +- 1.9E-05
+
+   Secondary-particle generation probabilities:
+                   ----------------------------------------------
+                   |  electrons   |   photons    |  positrons   |
+   --------------------------------------------------------------
+   |   upbound     | 1.256080E-02 | 1.144200E-03 | 0.000000E+00 |
+   |               |  +- 1.1E-04  |  +- 3.2E-05  |  +- 0.0E+00  |
+   --------------------------------------------------------------
+   |   downbound   | 8.707900E-03 | 1.002400E-03 | 0.000000E+00 |
+   |               |  +- 9.5E-05  |  +- 3.0E-05  |  +- 0.0E+00  |
+   --------------------------------------------------------------
+   |   absorbed    | 9.415623E-01 | 1.415700E-03 | 0.000000E+00 |
+   |               |  +- 1.6E-03  |  +- 3.6E-05  |  +- 0.0E+00  |
+   --------------------------------------------------------------
+
+   Average final energy:
+      Upbound primary particles .......  2.881531E+04 +- 1.8E+00 eV
+      Downbound primary particles .....  2.788311E+04 +- 6.4E+00 eV
+
+   Mean value of the polar cosine of the exit direction:
+      Upbound primary particles .......  7.804878E-01 +- 2.1E-04
+      Downbound primary particles ..... -6.508804E-01 +- 5.3E-04
+
+   Mean value of the polar angle of the exit direction:
+      Upbound primary particles .......  3.468389E+01 +- 2.0E-02 deg
+      Downbound primary particles .....  1.334138E+02 +- 4.4E-02 deg
+
+   Average deposited energies (bodies):
+      Body    1 ......  1.262634E+03 +- 1.6E+00 eV    (effic. = 3.13E+03)
+
+   Last random seeds = 1305184367 ,  346896757
+
+   ------------------------------------------------------------------------
