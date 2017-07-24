@@ -80,53 +80,55 @@ infname = 'from_Amrita/Au_100nm/'+pfx+'/psf-test.dat'
 inArr = np.loadtxt(infname)
 x = inArr[:, 2]*1e7; y = inArr[:, 3]*1e7; z = inArr[:, 4]*1e7
 u = inArr[:, 5]; v = inArr[:, 6]; w = inArr[:, 7]
+energy = inArr[:, 1]
+
+dE = 5
+E  = 13422
+ind = ((E - dE)< energy)*((E + dE)> energy) 
+
+u = u[ind]; v = v[ind]; w = w[ind]
 
 theta, phi = get_polar_angles(u, v, w)
 
 
-
-
-# ax = plt.subplot(projection='3d')
-# ax.plot(u, v, w, 'o', ms=0.1)
-# 
-# 
-# ax.set_xlim((-1, 1))
-# ax.set_ylim((-1, 1))
-# ax.set_zlim((-1, 1))
-# 
-# 
-
+#########################
+ax = plt.subplot(projection='3d')
+ax.plot(u, v, w, 'o', ms=1)
+ax.set_xlim((-1, 1))
+ax.set_ylim((-1, 1))
+ax.set_zlim((-1, 1))
 #########################
  
-thetag = np.arange(181); phig = np.arange(360)
-thetap, phip = np.meshgrid(thetag, phig, indexing='ij')
-nArr  = np.zeros(thetap.shape)
-
-nArr    = count_points(nArr, thetag, phig, theta, phi, dx=.5)
-
-fig     = plt.figure(figsize=(12,8))
-# ax      = plt.subplot(221)
-plt.pcolormesh(thetap, phip, nArr, shading='gouraud', vmax=nArr.max(), vmin=0., cmap='hot_r')
-plt.xlabel('theta (deg)', fontsize=30)
-plt.ylabel('phi (deg)', fontsize=30)
-# plt.axis([-10000, 10000, -10000, 10000], 'scaled')
-cb=plt.colorbar()
-# cb.set_label('%', fontsize=10)
-
-# ##############
-# zg = np.arange(201)*0.01 - 1.; phig = np.arange(360)
-# zp, phip = np.meshgrid(zg, phig, indexing='ij')
-# nArr  = np.zeros(zp.shape)
-# nArr    = count_points_2(nArr, zg, phig, w, phi, dphi=.5, dz=0.005)
+# thetag = np.arange(181); phig = np.arange(360)
+# thetap, phip = np.meshgrid(thetag, phig, indexing='ij')
+# nArr  = np.zeros(thetap.shape)
+# 
+# nArr    = count_points(nArr, thetag, phig, theta, phi, dx=.5)
 # 
 # fig     = plt.figure(figsize=(12,8))
 # # ax      = plt.subplot(221)
-# plt.pcolormesh(zp, phip, nArr, shading='gouraud', vmax=nArr.max(), vmin=0., cmap='hot_r')
-# plt.xlabel('z ', fontsize=30)
+# plt.pcolormesh(thetap, phip, nArr, shading='gouraud', vmax=nArr.max(), vmin=0., cmap='hot_r')
+# plt.xlabel('theta (deg)', fontsize=30)
 # plt.ylabel('phi (deg)', fontsize=30)
 # # plt.axis([-10000, 10000, -10000, 10000], 'scaled')
 # cb=plt.colorbar()
-# #############
+# # cb.set_label('%', fontsize=10)
+
+##############
+zg = np.arange(201)*0.01 - 1.; phig = np.arange(360)
+zp, phip = np.meshgrid(zg, phig, indexing='ij')
+nArr  = np.zeros(zp.shape)
+nArr    = count_points_2(nArr, zg, phig, w, phi, dphi=.5, dz=0.005)
+
+fig     = plt.figure(figsize=(12,8))
+# ax      = plt.subplot(221)
+plt.pcolormesh(zp, phip, nArr, shading='gouraud', vmax=nArr.max(), vmin=0., cmap='hot_r')
+plt.xlabel('z (cos(theta))', fontsize=30)
+plt.ylabel('phi (deg)', fontsize=30)
+# plt.axis([-10000, 10000, -10000, 10000], 'scaled')
+cb=plt.colorbar()
+plt.title('Energy = '+str(E)+' eV, Number of photons = '+str(u.size), fontsize=30)
+#############
 
 plt.show()
 
