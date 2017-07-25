@@ -48,9 +48,8 @@ def find_N_gamma(xgg, ygg, nArr, ):
     rms = 999
     gamma_min = 0.
     N_min   = 0.
-    for iN in xrange(10):
-        N   = iN*100 + 2500
-        print iN
+    for iN in xrange(1):
+        N   = iN*100 + 3900
         for ig in xrange(100):
             gamma = ig*0.5 + 0.1
             pdf = 1./np.pi/2.*(gamma/(((xgg)**2+(ygg)**2+gamma**2)**1.5) )
@@ -58,6 +57,7 @@ def find_N_gamma(xgg, ygg, nArr, ):
             rms_temp = np.sqrt(np.mean((nArr_pre - nArr)**2))
             if rms_temp < rms:
                 rms = rms_temp; gamma_min = gamma; Nmin = N
+        print N, gamma_min, rms
     return Nmin, gamma_min, rms
                 
 
