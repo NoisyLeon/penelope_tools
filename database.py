@@ -1,12 +1,13 @@
 import numpy as np
+import numba
 import asdf
-import subprocess, os
-import copy
+# import subprocess, os
+# import copy
 import matplotlib.pyplot as plt
-import shutil
+# import shutil
 
 
-@numba.jit(int32[:,:](int32[:,:], float64[:], float64[:], float64[:], float64[:], float64) )
+@numba.jit(numba.int32[:,:](numba.int32[:,:], numba.float64[:], numba.float64[:], numba.float64[:], numba.float64[:], numba.float64) )
 def _count_2D_points(nArr, xg, yg, xin, yin, dx):
     for ix in xrange(xg.size):
         for iy in xrange(yg.size):
@@ -26,15 +27,50 @@ def _cauchy_2d_fit(xgg, ygg, nArr, N0Arr, gammaArr):
         # N   = iN*100 + 26000
         for gamma in gammaArr:
             # gamma = ig*0.5 + 45.
-            pdf = 1./np.pi/2.*(gamma/(((xgg)**2+(ygg)**2+gamma**2)**1.5) )
-            nArr_pre = pdf*N
-            temp = (nArr_pre - nArr)**2
-            temp = temp[nArr>0]
-            rms_temp = np.sqrt(np.mean(temp))
+            # print N, gamma
+            pdf         = 1./np.pi/2.*(gamma/(((xgg)**2+(ygg)**2+gamma**2)**1.5) )
+            nArr_pre    = pdf*N
+            temp        = (nArr_pre - nArr)**2
+            temp        = temp[nArr>0]
+            # print temp.max()
+            rms_temp    = np.sqrt(np.mean(temp))
             if rms_temp < rms:
                 rms = rms_temp; gamma_min = gamma; Nmin = N
-        print N, gamma_min, rms
+        # print N, gamma_min, rms
     return Nmin, gamma_min, rms
+
+def _cauchy_rbins_fit(rg, rbins, A0, gammaArr, normtype=1):
+    rms         = 1e9
+    gamma_min   = 0.
+    Amin        = 0.
+    rmsArr      = np.array([])
+    for gamma in gammaArr:
+        Aarr = A0*np.pi*gamma/2. + np.arange(100.)*A0*np.pi*gamma/100.
+        rms_g= 1e9
+        for A in Aarr:
+            pdf     = A/np.pi*(gamma/((rg)**2+gamma**2) )
+            if normtype == 2:
+                temp    = (pdf - rbins)**2
+                temp    = temp[rbins>0]
+                rms_temp= np.sqrt(np.mean(temp))
+            elif normtype == 1:
+                temp    = np.abs(pdf - rbins)
+                temp    = temp[rbins>0]
+                rms_temp= np.mean(temp)
+            else:
+                raise ValueError('Not supported norm type: '+str(normtype))
+            if rms_temp < rms:
+                rms = rms_temp; gamma_min = gamma; Amin = A
+            if rms_temp < rms_g:
+                rms_g = rms_temp
+        rmsArr= np.append(rmsArr, rms_g)
+    return Amin, gamma_min, rms, rmsArr
+
+
+def _cauchy_2d(xg, yg, gamma, mux, muy):
+    xgg, ygg = np.meshgrid(xg, yg, indexing='ij')
+    pdf = 1./np.pi/2.*(gamma/(((xgg-mux)**2+(ygg-muy)**2+gamma**2)**1.5) )
+    return pdf
 
 class penelopedbase(object):
     """
@@ -50,14 +86,21 @@ class penelopedbase(object):
     energy  - particle energy (unit: eV)
     ===========================================================================================================
     """
-    def __init__(self, IE=30, I=10, h=100, symbol='Au', x = np.array([]), y=np.array([]), z=np.array([]),
-            u=np.array([]), v=np.array([]), w=np.array([]), energy=np.array([])):
-        
-        
+    def __init__(self, xmin=-800., xmax=800., Nx=1601, ymin=-800., ymax=800., Ny=1601, zmin=-5., zmax=95., Nz=10, IE=30, I=10, h=100,
+            symbol='Au', x = np.array([]), y=np.array([]), z=np.array([]), u=np.array([]), v=np.array([]), w=np.array([]), energy=np.array([])):
         self.IE     = IE
         self.I      = I
         self.h      = h
         self.symbol = symbol
+        ###
+        # grid points
+        ###
+        self.Nx     = Nx
+        self.Ny     = Ny
+        self.Nz     = Nz
+        self.xgrid  = np.mgrid[xmin:xmax:Nx*1j]
+        self.ygrid  = np.mgrid[ymin:ymax:Ny*1j]
+        self.zgrid  = np.mgrid[zmin:zmax:Nz*1j]
         ###
         # phase-space data
         ###
@@ -80,11 +123,161 @@ class penelopedbase(object):
         self.energy = inArr[:, 1]
         return
     
-    def cauchy_2d_fit(self, zmin, zmax=None, dN=100, dgamma=0.5):
+    def count_2d_points(self, zmin, zmax=None):
+        """
+        Count data points for predefined grid
+        """
         if zmax == None: zmax = zmin + 10.
-        
+        dx          = (self.xgrid[1] - self.xgrid[0])/2.
+        ind         = (self.z >= zmin)*(self.z <= zmax)
+        xin = self.x[ind]; yin = self.y[ind]; zin = self.z[ind]
+        nArr        = np.zeros((self.xgrid.size, self.ygrid.size), np.int32)
+        self.z2d   = (zmin+zmax)/2.
+        print 'Counting 2D points for z =', self.z2d,' nm'
+        self.nArr   = _count_2D_points(nArr, self.xgrid, self.ygrid, xin, yin, dx)
+        print 'End Counting 2D points.'
+        return
+    
+    def count_r_bins(self, zmin, rmax, Nr, rmin=0., zmax=None, plotfig=False):
+        """
+        Count data points for radius bins
+        """
+        rArr    = np.mgrid[rmin:rmax:Nr*1j]
+        if zmax == None: zmax = zmin + 10.
+        ind     = (self.z >= zmin)*(self.z <= zmax)
+        xin     = self.x[ind];  yin     = self.y[ind]; zin      = self.z[ind]
+        R       = np.sqrt(xin**2+yin**2)
+        self.rbins   = np.zeros(rArr.size-1)
+        for ir in xrange(Nr-1):
+            r0  = rArr[ir]; r1 = rArr[ir+1]
+            N   = np.where((R>=r0)*(R<r1))[0].size
+            self.rbins[ir] = N/np.pi/(r1**2-r0**2)
+        self.rArr = rArr[:-1]
+        self.rbins= self.rbins/self.rbins.sum()
+        if plotfig:
+            plt.plot(self.rArr, self.rbins, 'o', ms=3)
+            plt.show()
+    
+    def cauchy_rbins_fit(self, plotfig=False, plotrmax=50, normtype=1):
+        """
+        Fit the 2D cross section of radius-binned data points with 1D Cauchy distribution
+        """
+        A0                      = self.rbins.max()
+        gammaArr                = np.arange(200)*.2 + .2 # double check
+        Amin, gamma_min, rms, rmsArr = _cauchy_rbins_fit(self.rArr, self.rbins, A0=A0, gammaArr=gammaArr, normtype=normtype)
+        self.rbins_pre          = Amin/np.pi*(gamma_min/((self.rArr)**2+gamma_min**2) )
+        self.Amin               = Amin
+        self.gamma_cauchy_rbins = gamma_min
+        self.rms                = rms
+        temp                    = gammaArr[rmsArr<rms*1.1]
+        self.gmax    = temp.max(); self.gmin = temp.min()
+        # print Amin, gamma_min, rms
+        if plotfig:
+            ax=plt.subplot()
+            plt.plot(self.rArr, self.rbins, 'o', ms=10, label='observed')
+            plt.plot(self.rArr, self.rbins_pre, 'k--', lw=3, label='Best fit Cauchy distribution')
+            plt.ylabel('PDF ', fontsize=30)
+            plt.xlabel('Radius (nm)', fontsize=30)
+            ax.tick_params(axis='x', labelsize=20)
+            ax.tick_params(axis='y', labelsize=20)
+            plt.legend(loc=0, fontsize=20, numpoints=1)
+            plt.xlim(0, plotrmax)
+            plt.show()
+            
+    def get_char_radius(self, zmin, zmax=None, ratio=0.5):
+        if zmax == None: zmax = zmin + 10.
+        ind     = (self.z >= zmin)*(self.z <= zmax)
+        xin     = self.x[ind];  yin     = self.y[ind]; zin      = self.z[ind]
+        rArr    = np.arange(2000.)*0.1+0.1
+        self.z0 = (zmin+zmax)/2
+        Nt      = xin.size
+        for r in rArr:
+            if (xin[(xin**2+yin**2)<=r**2]).size > Nt*ratio:
+                print 'z0 =',self.z0,' nm 1 sigma radius = ',r,' nm', ' Nin = ', (xin[(xin**2+yin**2)<=r**2]).size, 'Ntotal =', Nt
+                break
+        self.cr = r
+        return
+            
         
     
+    def cauchy_2d_fit(self, zmin, zmax=None, dN=200, dgamma=0.5):
+        """
+        Fit the 2D cross section of data points with Cauchy distribution
+        """
+        if zmax == None: zmax = zmin + 10.
+        xgg, ygg= np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
+        print 'Finding minimum N and gamma'
+        # Coarsest grid
+        N0Arr   = np.arange(10)*5000. + 5000.
+        gammaArr= np.arange(50)*2. + 2.
+        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr)
+        # Coarsest grid
+        N0Arr   = np.arange(10)*1000. + Nmin - 2500.
+        gammaArr= np.arange(50)*1. + gamma_min - 1.
+        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr)
+        # finest grid
+        N0Arr   = np.arange(10)*dN + Nmin - 500.
+        gammaArr= np.arange(50)*dgamma + gamma_min - 0.5
+        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr)
+        self.Ncauchy        = Nmin
+        self.gamma_cauchy   = gamma_min
+        self.rms2d          = rms
+        print 'End finding minimum N and gamma'
+        print 'N =', Nmin,' gamma =', gamma_min 
+        return
+    
+    def plot_cauchy_2d_fit(self, showfig=True, outfname=None):
+        plotx, ploty = np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
+        # 
+        # # # #
+        pdf     = _cauchy_2d(self.xgrid, self.ygrid, gamma=self.gamma_cauchy, mux=0., muy=0.)
+        fig     = plt.figure(figsize=(12,8))
+        
+        ax      = plt.subplot(221)
+        nArr_pre= pdf*self.Ncauchy
+        Nmax    = self.nArr.max()
+        plt.pcolormesh(plotx, ploty, nArr_pre, shading='gouraud', vmax=Nmax/2, vmin=0., cmap='hot_r')
+        plt.xlabel('X (nm)', fontsize=10)
+        plt.ylabel('Y (nm)', fontsize=10)
+        plt.axis([self.xgrid[0], self.xgrid[-1], self.ygrid[0], self.ygrid[-1]], 'scaled')
+        cb=plt.colorbar()
+        cb.set_label('Number of photons', fontsize=10)
+
+        ax = plt.subplot(222)
+        plt.pcolormesh(plotx, ploty, self.nArr, shading='gouraud', vmax=Nmax/2, vmin=0., cmap='hot_r')
+        plt.xlabel('X (nm)', fontsize=10)
+        plt.ylabel('Y (nm)', fontsize=10)
+        plt.axis([self.xgrid[0], self.xgrid[-1], self.ygrid[0], self.ygrid[-1]], 'scaled')
+        cb=plt.colorbar()
+        cb.set_label('Number of photons', fontsize=10)
+        
+        ax = plt.subplot(223)
+        nyArr   = self.nArr[plotx==0.]
+        nyArr2  = nArr_pre[plotx==0.]
+        plt.plot(self.ygrid, nyArr, 'b-', lw=1, label='scatter, x = 0 nm')
+        plt.plot(self.ygrid, nyArr2, 'k--', lw=2, label='best, x = 0 nm')
+        # plt.xlim(-50, 50)
+        plt.xlim(-100, 100)
+        plt.legend(loc=0, fontsize=10)
+        plt.title('X = 0 nm', fontsize=30)
+        
+        ax = plt.subplot(224)
+        nxArr   = self.nArr[ploty==0.]
+        nxArr2  = nArr_pre[ploty==0.]
+        plt.plot(self.xgrid, nxArr, 'b-', lw=1, label='scatter, y = 0 nm')
+        plt.plot(self.xgrid, nxArr2, 'k--', lw=2, label='best, y = 0 nm')
+
+        plt.xlim(-100, 100)
+        # plt.xlim(-50, 50)
+        plt.title('Y = 0 nm', fontsize=30)
+        plt.legend(loc=0, fontsize=10)
+        if outfname !=None:
+            plt.savefig(outfname, format='png')
+        if showfig: plt.show()
+    
+    def get_cauchy_e_width(self):
+        pdf     = _cauchy_2d(self.xgrid, self.ygrid, gamma=self.gamma_cauchy, mux=0., muy=0.)
+        
     # 
     # def load(self, infname):
     #     """
