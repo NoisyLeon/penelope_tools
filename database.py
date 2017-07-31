@@ -197,7 +197,13 @@ class penelopedbase(object):
                 break
         self.cr = r
         return
-            
+    
+    def select_char(self, energy, dE=1.):
+        ind = (self.energy > energy-dE)*(self.energy < energy+dE)
+        self.x = self.x[ind]; self.y = self.y[ind]; self.z = self.z[ind]
+        self.u = self.u[ind]; self.v = self.v[ind]; self.w = self.w[ind]
+        self.energy = self.energy[ind]
+        return
         
     
     def cauchy_2d_fit(self, zmin, zmax=None, dN=200, dgamma=0.5):

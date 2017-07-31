@@ -14,7 +14,9 @@ for pfx in plst:
         infname = 'from_Amrita/Au_100nm/'+pfx+'/psf-test.dat'
         dbase   = database.penelopedbase()
         dbase.read_psf(infname)
-        dbase.get_char_radius(zmin=zmin, ratio=0.9)
+        dbase.select_char(energy=9713)
+        print  dbase.x.size
+        dbase.get_char_radius(zmin=zmin, ratio=0.5)
         rArr    = np.append(rArr, dbase.cr)
     rLst.append(rArr)
 
@@ -26,7 +28,7 @@ for pfx in plst:
     
     
 plt.legend(loc=0, fontsize=20)
-plt.ylabel('Characteristic Diameter (nm, 90%)', fontsize=30)
+plt.ylabel('Characteristic Diameter (nm, 50%)', fontsize=30)
 plt.xlabel('Z (nm)', fontsize=30)
 # plt.title('90%)', fontsize=40)
 ax.tick_params(axis='x', labelsize=20)
