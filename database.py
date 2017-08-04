@@ -5,6 +5,7 @@ import asdf
 # import copy
 import matplotlib.pyplot as plt
 # import shutil
+import xraylib_func
 
 
 @numba.jit(numba.int32[:,:](numba.int32[:,:], numba.float64[:], numba.float64[:], numba.float64[:], numba.float64[:], numba.float64) )
@@ -284,9 +285,54 @@ class penelopedbase(object):
     def get_cauchy_e_width(self):
         pdf     = _cauchy_2d(self.xgrid, self.ygrid, gamma=self.gamma_cauchy, mux=0., muy=0.)
         
+    def hist(self, repeat=6250, bins=7500, plotfig=False):
+        ax=plt.subplot(211)
+        n, bins, patches = plt.hist(np.repeat(self.energy, repeat), bins=bins, normed=False, facecolor='blue', edgecolor='blue')
+        if plotfig:
+            plt.ylabel('Photons/sec', fontsize=30)
+            # plt.xlabel('Energy (eV)', fontsize=30)
+            ax.tick_params(axis='x', labelsize=20)
+            ax.tick_params(axis='y', labelsize=20)
+            plt.title('Input Spectrum', fontsize=40)
+            plt.yscale('log', nonposy='clip')
+            plt.ylim(1e4, 1e8)
+            dbins=bins[0] - bins[1]
+            plt.grid(True)
+        else: plt.close()
+        self.ebins  = (bins[1:] + bins[:-1])/2 # convert to keV
+        self.Np     = n 
+        return
+    
+    def decay_spec(self, elesym, t, plotfig=True, density=None):
+        t   = t/1e7
+        if density == None:
+            mu  = (xraylib_func.get_mu_np(energy=self.ebins/1000., elesym=elesym))[0,:]
+        else:
+            mu  = xraylib_func.get_mu_np_CP(energy=self.ebins/1000., chemicalform=elesym, density=density)
+        r   = np.exp(-mu*t)
+        self.Np_out= r*self.Np
+        if plotfig:
+            ax=plt.subplot()
+            plt.plot(self.ebins, self.Np_out)
+            plt.ylabel('Photons/sec', fontsize=30)
+            plt.xlabel('Energy (eV)', fontsize=30)
+            ax.tick_params(axis='x', labelsize=20)
+            ax.tick_params(axis='y', labelsize=20)
+            plt.yscale('log', nonposy='clip')
+            plt.ylim(1e4, 1e8)
+            plt.grid(True)
+            plt.show()
+        
+        
     # 
     # def load(self, infname):
     #     """
     #     Load ASDF file
     #     """
     #     self.tree.update((asdf.AsdfFile.open(infname)).tree)
+    
+    
+# def compute_gamma(elementnumber, energy=10):
+    
+    
+    
