@@ -53,13 +53,19 @@ def _cauchy_rbins_fit(rg, rbins, A0, gammaArr, normtype=1):
             if normtype == 2:
                 temp    = (pdf - rbins)**2
                 temp    = temp[rbins>0]
+                # temp2   = rbins[rbins>0]
+                # rms_temp= np.sqrt(np.mean(temp/(temp2**2)))
                 rms_temp= np.sqrt(np.mean(temp))
             elif normtype == 1:
                 temp    = np.abs(pdf - rbins)
                 temp    = temp[rbins>0]
                 rms_temp= np.mean(temp)
             else:
-                raise ValueError('Not supported norm type: '+str(normtype))
+                temp    = (np.abs(pdf - rbins))**normtype
+                temp    = temp[rbins>0]
+                rms_temp= (np.mean(temp))**(1./normtype)
+            # else:
+            #     raise ValueError('Not supported norm type: '+str(normtype))
             if rms_temp < rms:
                 rms = rms_temp; gamma_min = gamma; Amin = A
             if rms_temp < rms_g:
@@ -67,6 +73,59 @@ def _cauchy_rbins_fit(rg, rbins, A0, gammaArr, normtype=1):
         rmsArr= np.append(rmsArr, rms_g)
     return Amin, gamma_min, rms, rmsArr
 
+def _gauss_rbins_fit(rg, rbins, sigmaArr, normtype=1):
+    rms         = 1e9
+    sigma_min   = 0.
+    Amin        = 1.
+    rmsArr      = np.array([])
+    
+    for sigma in sigmaArr:
+        Aarr = np.arange(100.)*0.05+.5
+        for A in Aarr:
+            pdf     = A/np.sqrt(2*np.pi)/sigma*np.exp(-(rg)**2/2./(sigma**2))
+            if normtype == 2:
+                temp    = (pdf - rbins)**2
+                temp    = temp[rbins>0]
+                # temp2   = rbins[rbins>0]
+                # rms_temp= np.sqrt(np.mean(temp/(temp2**2)))
+                rms_temp= np.sqrt(np.mean(temp))
+            elif normtype == 1:
+                temp    = np.abs(pdf - rbins)
+                temp    = temp[rbins>0]
+                rms_temp= np.mean(temp)
+            else:
+                temp    = (np.abs(pdf - rbins))**normtype
+                temp    = temp[rbins>0]
+                rms_temp= (np.mean(temp))**(1./normtype)
+            if rms_temp < rms:
+                rms = rms_temp; sigma_min = sigma; Amin=A
+        # rmsArr= np.append(rmsArr, rms_g)
+    # print sigma_min, rms, Amin
+    return sigma_min, rms, Amin
+    
+    
+    
+    # for sigma in sigmaArr:
+    #     Aarr = A0*np.pi*gamma/2. + np.arange(100.)*A0*np.pi*gamma/100.
+    #     rms_g= 1e9
+    #     for A in Aarr:
+    #         pdf     = A/np.pi*(gamma/((rg)**2+gamma**2) )
+    #         if normtype == 2:
+    #             temp    = (pdf - rbins)**2
+    #             temp    = temp[rbins>0]
+    #             rms_temp= np.sqrt(np.mean(temp))
+    #         elif normtype == 1:
+    #             temp    = np.abs(pdf - rbins)
+    #             temp    = temp[rbins>0]
+    #             rms_temp= np.mean(temp)
+    #         else:
+    #             raise ValueError('Not supported norm type: '+str(normtype))
+    #         if rms_temp < rms:
+    #             rms = rms_temp; gamma_min = gamma; Amin = A
+    #         if rms_temp < rms_g:
+    #             rms_g = rms_temp
+    #     rmsArr= np.append(rmsArr, rms_g)
+    # return Amin, gamma_min, rms, rmsArr
 
 def _cauchy_2d(xg, yg, gamma, mux, muy):
     xgg, ygg = np.meshgrid(xg, yg, indexing='ij')
@@ -139,24 +198,64 @@ class penelopedbase(object):
         print 'End Counting 2D points.'
         return
     
-    def count_r_bins(self, zmin, rmax, Nr, rmin=0., zmax=None, plotfig=False):
+    def count_r_bins(self, rmax, Nr, zmin=None, rmin=0., zmax=None, plotfig=False):
         """
         Count data points for radius bins
         """
         rArr    = np.mgrid[rmin:rmax:Nr*1j]
-        if zmax == None: zmax = zmin + 10.
-        ind     = (self.z >= zmin)*(self.z <= zmax)
-        xin     = self.x[ind];  yin     = self.y[ind]; zin      = self.z[ind]
+        if zmin != None:
+            if zmax == None: zmax = zmin + 10.
+            ind     = (self.z >= zmin)*(self.z <= zmax)
+            xin     = self.x[ind];  yin     = self.y[ind]; zin      = self.z[ind]
+        else:
+            xin     = self.x.copy();  yin     = self.y.copy(); zin      = self.z.copy()
         R       = np.sqrt(xin**2+yin**2)
         self.rbins   = np.zeros(rArr.size-1)
+        self.area   = np.zeros(rArr.size-1)
         for ir in xrange(Nr-1):
             r0  = rArr[ir]; r1 = rArr[ir+1]
             N   = np.where((R>=r0)*(R<r1))[0].size
-            self.rbins[ir] = N/np.pi/(r1**2-r0**2)
+            self.rbins[ir]  = N#/np.pi/(r1**2-r0**2)
+            self.area[ir]   = np.pi*(r1**2-r0**2)
         self.rArr = rArr[:-1]
-        self.rbins= self.rbins/self.rbins.sum()
+        self.rbins_no_norm=self.rbins.copy()
+        # self.rbins= self.rbins/self.rbins.sum()
         if plotfig:
             plt.plot(self.rArr, self.rbins, 'o', ms=3)
+            plt.show()
+            
+            
+    def gauss_rbins_fit(self, plotfig=False, plotrmax=50, normtype=1):
+        """
+        Fit the 2D cross section of radius-binned data points with 1D Cauchy distribution
+        """
+        A0                      = self.rbins.max()
+        sigmaArr                = np.arange(200)*.2 + .2 # double check
+        # sigmaArr=np.array([30.])
+        sigma_min, rms, Amin    = _gauss_rbins_fit(self.rArr, self.rbins, sigmaArr=sigmaArr, normtype=normtype)
+        # # # sigma_min = 25.
+        # self.rbins_pre_gauss    = Amin/np.sqrt(2*np.pi)/sigma_min*np.exp(-(self.rArr)**2/2./(sigma_min**2))
+        self.rbins_pre          = Amin/np.sqrt(2*np.pi)/sigma_min*np.exp(-(self.rArr)**2/2./(sigma_min**2))
+        self.Amin               = Amin
+        self.sigma_rbins        = sigma_min
+        self.rms                = rms
+        
+        # temp                    = gammaArr[rmsArr<rms*1.1]
+        # self.gmax    = temp.max(); self.gmin = temp.min()
+        # print Amin, gamma_min, rms
+        if plotfig:
+            ax=plt.subplot()
+            plt.plot(self.rArr, self.rbins, 'o', ms=10, label='observed')
+            # plt.plot(self.rArr, self.rbins_pre_gauss, 'k--', lw=3, label='Best fit Gaussian distribution')
+            plt.plot(self.rArr, self.rbins_pre, 'k--', lw=3, label='Best fit Gaussian distribution')
+            plt.ylabel('PDF ', fontsize=30)
+            plt.xlabel('Radius (nm)', fontsize=30)
+            ax.tick_params(axis='x', labelsize=20)
+            ax.tick_params(axis='y', labelsize=20)
+            plt.legend(loc=0, fontsize=20, numpoints=1)
+            plt.yscale('log', nonposy='clip')
+            plt.xlim(0, plotrmax)
+            plt.ylim(1e-8, 0.1)
             plt.show()
     
     def cauchy_rbins_fit(self, plotfig=False, plotrmax=50, normtype=1):
@@ -177,24 +276,44 @@ class penelopedbase(object):
             ax=plt.subplot()
             plt.plot(self.rArr, self.rbins, 'o', ms=10, label='observed')
             plt.plot(self.rArr, self.rbins_pre, 'k--', lw=3, label='Best fit Cauchy distribution')
+            # plt.plot(self.rArr, self.rbins_pre_gauss, 'r--', lw=3, label='Best fit Gaussian distribution')
             plt.ylabel('PDF ', fontsize=30)
             plt.xlabel('Radius (nm)', fontsize=30)
             ax.tick_params(axis='x', labelsize=20)
             ax.tick_params(axis='y', labelsize=20)
             plt.legend(loc=0, fontsize=20, numpoints=1)
+            plt.yscale('log', nonposy='clip')
             plt.xlim(0, plotrmax)
+            plt.ylim(1e-8, 0.1)
             plt.show()
             
-    def get_char_radius(self, zmin, zmax=None, ratio=0.5):
-        if zmax == None: zmax = zmin + 10.
-        ind     = (self.z >= zmin)*(self.z <= zmax)
-        xin     = self.x[ind];  yin     = self.y[ind]; zin      = self.z[ind]
-        rArr    = np.arange(2000.)*0.1+0.1
-        self.z0 = (zmin+zmax)/2
+    def pdf_radius(self, ratio=0.5):
+        NArr = self.rbins_pre*self.area
+        A0 = NArr.sum()
+        for i in xrange(NArr.size):
+            temp = (NArr[:(i+1)]).sum()
+            if temp/A0 > ratio:
+                self.r_pdf = self.rArr[i]
+                break
+        return
+            
+            
+    def get_char_radius(self, zmin=None, zmax=None, ratio=0.5):
+        if zmin != None:
+            if zmax == None: zmax = zmin + 10.
+            ind     = (self.z >= zmin)*(self.z <= zmax)
+            xin     = self.x[ind];  yin     = self.y[ind]; zin      = self.z[ind]
+            self.z0 = (zmin+zmax)/2
+        else:
+            xin     = self.x.copy();  yin     = self.y.copy(); zin      = self.z.copy()
+        rArr    = np.arange(400.)*2.+2.
         Nt      = xin.size
         for r in rArr:
             if (xin[(xin**2+yin**2)<=r**2]).size > Nt*ratio:
-                print 'z0 =',self.z0,' nm 1 sigma radius = ',r,' nm', ' Nin = ', (xin[(xin**2+yin**2)<=r**2]).size, 'Ntotal =', Nt
+                try:
+                    print 'z0 =',self.z0,' nm 1 sigma radius = ',r,' nm', ' Nin = ', (xin[(xin**2+yin**2)<=r**2]).size, 'Ntotal =', Nt
+                except:
+                    print '1 sigma radius = ',r,' nm', ' Nin = ', (xin[(xin**2+yin**2)<=r**2]).size, 'Ntotal =', Nt
                 break
         self.cr = r
         return
