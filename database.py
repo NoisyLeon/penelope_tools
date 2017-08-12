@@ -20,25 +20,62 @@ def _count_2D_points(nArr, xg, yg, xin, yin, dx):
     return nArr
 
 
-def _cauchy_2d_fit(xgg, ygg, nArr, N0Arr, gammaArr):
-    rms = 999
-    gamma_min = 0.
-    N_min   = 0.
+def _cauchy_2d_fit(xgg, ygg, nArr, N0Arr, gammaArr, normtype=1):
+    rms         = 999
+    gamma_min   = 0.
+    N_min       = 0.
     for N in N0Arr:
         # N   = iN*100 + 26000
         for gamma in gammaArr:
             # gamma = ig*0.5 + 45.
-            # print N, gamma
+            print N, gamma
             pdf         = 1./np.pi/2.*(gamma/(((xgg)**2+(ygg)**2+gamma**2)**1.5) )
             nArr_pre    = pdf*N
-            temp        = (nArr_pre - nArr)**2
-            temp        = temp[nArr>0]
-            # print temp.max()
-            rms_temp    = np.sqrt(np.mean(temp))
+            if normtype == 2:
+                temp        = (nArr_pre - nArr)**2
+                temp        = temp[nArr>0]
+                rms_temp    = np.sqrt(np.mean(temp))
+            elif normtype == 1:
+                temp    = np.abs(nArr_pre - nArr)
+                temp    = temp[nArr>0]
+                rms_temp= np.mean(temp)
+            else:
+                temp    = (np.abs(nArr_pre - nArr))**normtype
+                temp    = temp[nArr>0]
+                rms_temp= (np.mean(temp))**(1./normtype)
             if rms_temp < rms:
                 rms = rms_temp; gamma_min = gamma; Nmin = N
         # print N, gamma_min, rms
     return Nmin, gamma_min, rms
+
+
+def _cauchy_2d_fit_fix_N0(xgg, ygg, nArr, gammaArr, N0, normtype=1):
+    rms         = 999
+    gamma_min   = 0.
+    R           = np.sqrt((xgg)**2+(ygg)**2)
+    for gamma in gammaArr:
+        print gamma, rms
+        pdf         = 1./np.pi/2.*(gamma/(((xgg)**2+(ygg)**2+gamma**2)**1.5) )
+        Nt          = N0*2.*np.pi*(gamma**2)
+        nArr_pre    = pdf*Nt
+        if normtype == 2:
+            temp        = (nArr_pre - nArr)**2
+            # temp        = temp[nArr>0]
+            temp        = temp[(nArr>0)*(R>25)*(R<400.)]
+            rms_temp    = np.sqrt(np.mean(temp))
+        elif normtype == 1:
+            temp    = np.abs(nArr_pre - nArr)
+            # temp    = temp[nArr>0]
+            temp    = temp[(nArr>0)*(R>25)*(R<400.)]
+            rms_temp= np.mean(temp)
+        else:
+            temp    = (np.abs(nArr_pre - nArr))**normtype
+            # temp    = temp[nArr>0]
+            temp    = temp[(nArr>0)*(R>25)*(R<400.)]
+            rms_temp= (np.mean(temp))**(1./normtype)
+        if rms_temp < rms:
+            rms = rms_temp; gamma_min = gamma
+    return gamma_min, rms
 
 def _cauchy_rbins_fit(rg, rbins, A0, gammaArr, normtype=1):
     rms         = 1e9
@@ -103,29 +140,6 @@ def _gauss_rbins_fit(rg, rbins, sigmaArr, normtype=1):
     # print sigma_min, rms, Amin
     return sigma_min, rms, Amin
     
-    
-    
-    # for sigma in sigmaArr:
-    #     Aarr = A0*np.pi*gamma/2. + np.arange(100.)*A0*np.pi*gamma/100.
-    #     rms_g= 1e9
-    #     for A in Aarr:
-    #         pdf     = A/np.pi*(gamma/((rg)**2+gamma**2) )
-    #         if normtype == 2:
-    #             temp    = (pdf - rbins)**2
-    #             temp    = temp[rbins>0]
-    #             rms_temp= np.sqrt(np.mean(temp))
-    #         elif normtype == 1:
-    #             temp    = np.abs(pdf - rbins)
-    #             temp    = temp[rbins>0]
-    #             rms_temp= np.mean(temp)
-    #         else:
-    #             raise ValueError('Not supported norm type: '+str(normtype))
-    #         if rms_temp < rms:
-    #             rms = rms_temp; gamma_min = gamma; Amin = A
-    #         if rms_temp < rms_g:
-    #             rms_g = rms_temp
-    #     rmsArr= np.append(rmsArr, rms_g)
-    # return Amin, gamma_min, rms, rmsArr
 
 def _cauchy_2d(xg, yg, gamma, mux, muy):
     xgg, ygg = np.meshgrid(xg, yg, indexing='ij')
@@ -183,19 +197,35 @@ class penelopedbase(object):
         self.energy = inArr[:, 1]
         return
     
-    def count_2d_points(self, zmin, zmax=None):
+    def save_2d_points(self, outfname):
+        np.save(outfname, self.nArr)
+        return
+    
+    def load_2d_points(self, infname):
+        self.nArr = np.load(infname)
+        return
+    
+    def count_2d_points(self, zmin=None, zmax=None, outfname=None):
         """
         Count data points for predefined grid
         """
-        if zmax == None: zmax = zmin + 10.
+        if zmin != None:
+            if zmax == None: zmax = zmin + 10.
+            ind     = (self.z >= zmin)*(self.z <= zmax)
+            xin     = self.x[ind];  yin     = self.y[ind]; zin      = self.z[ind]
+            self.z2d= (zmin+zmax)/2.
+        else:
+            xin     = self.x.copy();  yin     = self.y.copy(); zin      = self.z.copy()
         dx          = (self.xgrid[1] - self.xgrid[0])/2.
-        ind         = (self.z >= zmin)*(self.z <= zmax)
-        xin = self.x[ind]; yin = self.y[ind]; zin = self.z[ind]
         nArr        = np.zeros((self.xgrid.size, self.ygrid.size), np.int32)
-        self.z2d   = (zmin+zmax)/2.
-        print 'Counting 2D points for z =', self.z2d,' nm'
+        try:
+            self.z2d
+            print 'Counting 2D points for z =', self.z2d,' nm'
+        except:
+            print 'Counting all points as 2D'
         self.nArr   = _count_2D_points(nArr, self.xgrid, self.ygrid, xin, yin, dx)
         print 'End Counting 2D points.'
+        if outfname != None: self.save_2d_points(outfname=outfname)
         return
     
     def count_r_bins(self, rmax, Nr, zmin=None, rmin=0., zmax=None, plotfig=False):
@@ -218,10 +248,38 @@ class penelopedbase(object):
             self.rbins[ir]  = N#/np.pi/(r1**2-r0**2)
             self.area[ir]   = np.pi*(r1**2-r0**2)
         self.rArr = rArr[:-1]
-        self.rbins_no_norm=self.rbins.copy()
+        # self.rbins_no_norm=self.rbins.copy()
         # self.rbins= self.rbins/self.rbins.sum()
         if plotfig:
             plt.plot(self.rArr, self.rbins, 'o', ms=3)
+            plt.show()
+        self.r2     = (rArr[1:])**2-(rArr[:-1])**2
+        self.rbins_norm =     self.rbins / self.r2
+    
+    def count_r_bins_cauchy_2d(self, Nt, gamma, rmax, Nr, rmin=0., plotfig=True):
+        """
+        Count data points for radius bins from 2D Cauchy distribution
+        """
+        rArr        = np.mgrid[rmin:rmax:Nr*1j]
+        self.rArr   = rArr[:-1]
+        pdf         = 1./np.pi/2.*(gamma/(((self.rArr)**2+gamma**2)**1.5) )
+        self.rbins_cauchy = Nt * pdf * np.pi*((rArr[1:])**2-(rArr[:-1])**2)
+        # self.r2     = (rArr[1:])**2-(rArr[:-1])**2
+        # # 
+        # # pdf     = _cauchy_2d(self.xgrid, self.ygrid, gamma=gamma, mux=0., muy=0.)
+        # # nArr_pre= pdf*Nt
+        # # R       = np.sqrt(self.xgrid**2+self.ygrid**2)
+        # # self.rbins_cauchy= np.zeros(rArr.size-1)
+        # # 
+        # # for ir in xrange(Nr-1):
+        # #     r0  = rArr[ir]; r1 = rArr[ir+1]
+        # #     ind = np.where((R>=r0)*(R<r1))[0]
+        # #     N   = (nArr_pre[ind]).sum()
+        # #     self.rbins_cauchy[ir]  = N
+        # #     print r0, N
+        # # self.rArr = rArr[:-1]
+        if plotfig:
+            plt.plot(self.rArr, self.rbins_cauchy, 'o', ms=3)
             plt.show()
             
             
@@ -326,30 +384,42 @@ class penelopedbase(object):
         return
         
     
-    def cauchy_2d_fit(self, zmin, zmax=None, dN=200, dgamma=0.5):
+    def cauchy_2d_fit(self, dN=200, dgamma=0.5, normtype=2):
         """
         Fit the 2D cross section of data points with Cauchy distribution
         """
-        if zmax == None: zmax = zmin + 10.
         xgg, ygg= np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
         print 'Finding minimum N and gamma'
         # Coarsest grid
-        N0Arr   = np.arange(10)*5000. + 5000.
+        N0Arr   = np.arange(20)*5000. + 5000.
         gammaArr= np.arange(50)*2. + 2.
-        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr)
+        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr, normtype=normtype)
         # Coarsest grid
         N0Arr   = np.arange(10)*1000. + Nmin - 2500.
         gammaArr= np.arange(50)*1. + gamma_min - 1.
-        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr)
+        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr, normtype=normtype)
         # finest grid
         N0Arr   = np.arange(10)*dN + Nmin - 500.
         gammaArr= np.arange(50)*dgamma + gamma_min - 0.5
-        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr)
+        Nmin, gamma_min, rms= _cauchy_2d_fit(xgg, ygg, self.nArr, N0Arr, gammaArr, normtype=normtype)
         self.Ncauchy        = Nmin
         self.gamma_cauchy   = gamma_min
         self.rms2d          = rms
         print 'End finding minimum N and gamma'
         print 'N =', Nmin,' gamma =', gamma_min 
+        return
+    
+    def cauchy_2d_fit_fix_N0(self, dN=200, dgamma=0.5, normtype=2):
+        """
+        Fit the 2D cross section of data points with Cauchy distribution
+        """
+        xgg, ygg= np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
+        N0 = self.nArr[(self.Nx-1)/2, (self.Ny-1)/2]
+        gammaArr = np.arange(100)*dgamma + 0.5
+        gamma_min, rms = _cauchy_2d_fit_fix_N0(xgg, ygg, self.nArr, N0=N0, gammaArr=gammaArr, normtype=normtype)
+        self.gamma_cauchy   = gamma_min
+        self.rms2d          = rms
+        self.Ncauchy        = N0*2.*np.pi*(gamma_min**2)
         return
     
     def plot_cauchy_2d_fit(self, showfig=True, outfname=None):
