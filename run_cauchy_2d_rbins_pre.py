@@ -7,6 +7,8 @@ dbase.read_psf(infname)
 dbase.count_r_bins( rmax=800., Nr=401)
 dbase.count_r_bins_cauchy_2d(Nt=54929.176751690742/2., gamma=25., rmax=800., Nr=401, plotfig=False)
 
+
+
 ax=plt.subplot()
 plt.plot(dbase.rArr, dbase.rbins, 'bo', ms=10,label='all')
 plt.plot(dbase.rArr, dbase.rbins_cauchy, 'k--',lw=5, ms=10,label='cauchy')

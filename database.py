@@ -48,6 +48,92 @@ def _cauchy_2d_fit(xgg, ygg, nArr, N0Arr, gammaArr, normtype=1):
         # print N, gamma_min, rms
     return Nmin, gamma_min, rms
 
+def _gauss_2d_fit(xgg, ygg, nArr, N0Arr, sigmaArr, normtype=1):
+    rms         = 999
+    sigma_min   = 0.
+    N_min       = 0.
+    for N in N0Arr:
+        # N   = iN*100 + 26000
+        for sigma in sigmaArr:
+            # gamma = ig*0.5 + 45.
+            print N, sigma
+            pdf         = np.exp( -0.5*((xgg/sigma)**2) - 0.5*((ygg/sigma)**2) ) / 2./np.pi/(sigma**2)
+            nArr_pre    = pdf*N
+            if normtype == 2:
+                temp        = (nArr_pre - nArr)**2
+                temp        = temp[nArr>0]
+                rms_temp    = np.sqrt(np.mean(temp))
+            elif normtype == 1:
+                temp    = np.abs(nArr_pre - nArr)
+                temp    = temp[nArr>0]
+                rms_temp= np.mean(temp)
+            else:
+                temp    = (np.abs(nArr_pre - nArr))**normtype
+                temp    = temp[nArr>0]
+                rms_temp= (np.mean(temp))**(1./normtype)
+            if rms_temp < rms:
+                rms = rms_temp; sigma_min = sigma; Nmin = N
+    return Nmin, sigma_min, rms
+
+def _exprd_2d_fit(xgg, ygg, nArr, N0Arr, CArr, r=75., normtype=1):
+    rms         = 999
+    sigma_min   = 0.
+    N_min       = 0.
+    R           = np.sqrt(xgg**2+ygg**2)
+    ind         = R > 75.
+    for N in N0Arr:
+        for C in CArr:
+            pdf         = 1./2./np.pi/C*np.exp( -R/C)
+            nArr_pre    = pdf*N
+            
+            if normtype == 2:
+                temp        = (nArr_pre - nArr)**2
+                temp        = temp[(nArr>0)*(ind)]
+                rms_temp    = np.sqrt(np.mean(temp))
+            elif normtype == 1:
+                temp    = np.abs(nArr_pre - nArr)
+                temp    = temp[(nArr>0)*(ind)]
+                rms_temp= np.mean(temp)
+            else:
+                temp    = (np.abs(nArr_pre - nArr))**normtype
+                temp    = temp[(nArr>0)*(ind)]
+                rms_temp= (np.mean(temp))**(1./normtype)
+            if rms_temp < rms:
+                rms = rms_temp; Cmin = C; Nmin = N
+            print N, C, rms_temp
+    return Nmin, Cmin, rms
+
+def _mix_2d_fit(xgg, ygg, nArr, N0Arr, sigmaArr, pArr, CArr, normtype=1):
+    sigma   = 4.0
+    rms         = 999
+    sigma_min   = 0.
+    N_min       = 0.
+    for N in N0Arr:
+        for sigma in sigmaArr:
+            for p in pArr:
+                for C in CArr:
+                    pdf1    = np.exp( -0.5*((xgg/sigma)**2) - 0.5*((ygg/sigma)**2) ) / 2./np.pi/(sigma**2)
+                    pdf2    = 1./4/(C**2)*np.exp( -np.abs(xgg)/C - np.abs(ygg)/C)
+                    pdf     = pdf1*(1-p) + pdf2*p
+                    nArr_pre    = pdf*N
+                    if normtype == 2:
+                        temp        = (nArr_pre - nArr)**2
+                        temp        = temp[nArr>0]
+                        rms_temp    = np.sqrt(np.mean(temp))
+                    elif normtype == 1:
+                        temp    = np.abs(nArr_pre - nArr)
+                        temp    = temp[nArr>0]
+                        rms_temp= np.mean(temp)
+                    else:
+                        temp    = (np.abs(nArr_pre - nArr))**normtype
+                        temp    = temp[nArr>0]
+                        rms_temp= (np.mean(temp))**(1./normtype)
+                    if rms_temp < rms:
+                        rms = rms_temp; sigma_min = sigma; Nmin = N; pmin = p; Cmin = C
+        
+    return pmin, Cmin, Nmin, sigma_min, rms
+    
+
 
 def _cauchy_2d_fit_fix_N0(xgg, ygg, nArr, gammaArr, N0, normtype=1):
     rms         = 999
@@ -145,6 +231,12 @@ def _cauchy_2d(xg, yg, gamma, mux, muy):
     xgg, ygg = np.meshgrid(xg, yg, indexing='ij')
     pdf = 1./np.pi/2.*(gamma/(((xgg-mux)**2+(ygg-muy)**2+gamma**2)**1.5) )
     return pdf
+
+def _gauss_2d(xg, yg, sigma, mux, muy):
+    xgg, ygg    = np.meshgrid(xg, yg, indexing='ij')
+    pdf         = np.exp( -0.5*(((xgg-mux)/sigma)**2) - 0.5*(((ygg-muy)/sigma)**2) ) / 2./np.pi/(sigma**2)
+    return pdf
+
 
 class penelopedbase(object):
     """
@@ -248,8 +340,6 @@ class penelopedbase(object):
             self.rbins[ir]  = N#/np.pi/(r1**2-r0**2)
             self.area[ir]   = np.pi*(r1**2-r0**2)
         self.rArr = rArr[:-1]
-        # self.rbins_no_norm=self.rbins.copy()
-        # self.rbins= self.rbins/self.rbins.sum()
         if plotfig:
             plt.plot(self.rArr, self.rbins, 'o', ms=3)
             plt.show()
@@ -264,20 +354,44 @@ class penelopedbase(object):
         self.rArr   = rArr[:-1]
         pdf         = 1./np.pi/2.*(gamma/(((self.rArr)**2+gamma**2)**1.5) )
         self.rbins_cauchy = Nt * pdf * np.pi*((rArr[1:])**2-(rArr[:-1])**2)
-        # self.r2     = (rArr[1:])**2-(rArr[:-1])**2
-        # # 
-        # # pdf     = _cauchy_2d(self.xgrid, self.ygrid, gamma=gamma, mux=0., muy=0.)
-        # # nArr_pre= pdf*Nt
-        # # R       = np.sqrt(self.xgrid**2+self.ygrid**2)
-        # # self.rbins_cauchy= np.zeros(rArr.size-1)
-        # # 
-        # # for ir in xrange(Nr-1):
-        # #     r0  = rArr[ir]; r1 = rArr[ir+1]
-        # #     ind = np.where((R>=r0)*(R<r1))[0]
-        # #     N   = (nArr_pre[ind]).sum()
-        # #     self.rbins_cauchy[ir]  = N
-        # #     print r0, N
-        # # self.rArr = rArr[:-1]
+        if plotfig:
+            plt.plot(self.rArr, self.rbins_cauchy, 'o', ms=3)
+            plt.show()
+            
+    def count_r_bins_gauss_2d(self, Nt, sigma, rmax, Nr, rmin=0., plotfig=True):
+        """
+        Count data points for radius bins from 2D Cauchy distribution
+        """
+        rArr        = np.mgrid[rmin:rmax:Nr*1j]
+        self.rArr   = rArr[:-1]
+        pdf         = np.exp( -0.5*((self.rArr/sigma)**2 )) / 2./np.pi/(sigma**2)
+        self.rbins_gauss = Nt * pdf * np.pi*((rArr[1:])**2-(rArr[:-1])**2)
+        if plotfig:
+            plt.plot(self.rArr, self.rbins_cauchy, 'o', ms=3)
+            plt.show()
+    
+    def count_r_bins_exprd_2d(self, Nt, C, rmax, Nr, rmin=0., plotfig=True):
+        """
+        Count data points for radius bins from 2D Cauchy distribution
+        """
+        rArr        = np.mgrid[rmin:rmax:Nr*1j]
+        self.rArr   = rArr[:-1]
+        pdf         = 1./2./np.pi/C*np.exp( -self.rArr/C)
+        self.rbins_exprd = Nt * pdf * np.pi*((rArr[1:])**2-(rArr[:-1])**2)
+        if plotfig:
+            plt.plot(self.rArr, self.rbins_cauchy, 'o', ms=3)
+            plt.show()
+    
+    def count_r_bins_mix_2d(self, Nt, p, sigma, C, rmax, Nr, rmin=0., plotfig=True):
+        """
+        Count data points for radius bins from 2D Cauchy distribution
+        """
+        rArr        = np.mgrid[rmin:rmax:Nr*1j]
+        self.rArr   = rArr[:-1]
+        # pdf1        = np.exp( -0.5*((self.rArr/sigma)**2 )) / 2./np.pi/(sigma**2)
+        pdf1        = 1./np.pi/2.*(sigma/(((self.rArr)**2+sigma**2)**1.5) )
+        pdf2        = 1./2./np.pi/C*np.exp( -self.rArr/C)
+        self.rbins_mix = Nt*(p*pdf1+(1-p)*pdf2) * np.pi*((rArr[1:])**2-(rArr[:-1])**2)
         if plotfig:
             plt.plot(self.rArr, self.rbins_cauchy, 'o', ms=3)
             plt.show()
@@ -291,16 +405,10 @@ class penelopedbase(object):
         sigmaArr                = np.arange(200)*.2 + .2 # double check
         # sigmaArr=np.array([30.])
         sigma_min, rms, Amin    = _gauss_rbins_fit(self.rArr, self.rbins, sigmaArr=sigmaArr, normtype=normtype)
-        # # # sigma_min = 25.
-        # self.rbins_pre_gauss    = Amin/np.sqrt(2*np.pi)/sigma_min*np.exp(-(self.rArr)**2/2./(sigma_min**2))
         self.rbins_pre          = Amin/np.sqrt(2*np.pi)/sigma_min*np.exp(-(self.rArr)**2/2./(sigma_min**2))
         self.Amin               = Amin
         self.sigma_rbins        = sigma_min
         self.rms                = rms
-        
-        # temp                    = gammaArr[rmsArr<rms*1.1]
-        # self.gmax    = temp.max(); self.gmin = temp.min()
-        # print Amin, gamma_min, rms
         if plotfig:
             ax=plt.subplot()
             plt.plot(self.rArr, self.rbins, 'o', ms=10, label='observed')
@@ -409,6 +517,31 @@ class penelopedbase(object):
         print 'N =', Nmin,' gamma =', gamma_min 
         return
     
+    def gauss_2d_fit(self, dN=200, dsigma=0.5, normtype=2):
+        """
+        Fit the 2D cross section of data points with Gauss distribution
+        """
+        xgg, ygg= np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
+        print 'Finding minimum N and gamma'
+        # Coarsest grid
+        N0Arr   = np.arange(20)*5000. + 5000.
+        sigmaArr= np.arange(50)*2. + 2.
+        Nmin, sigma_min, rms= _gauss_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, normtype=normtype)
+        # Coarsest grid
+        N0Arr   = np.arange(10)*1000. + Nmin - 2500.
+        sigmaArr= np.arange(50)*1. + sigma_min - 1.
+        Nmin, sigma_min, rms= _gauss_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, normtype=normtype)
+        # finest grid
+        N0Arr   = np.arange(10)*dN + Nmin - 500.
+        sigmaArr= np.arange(50)*dsigma + sigma_min - 0.5
+        Nmin, sigma_min, rms= _gauss_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, normtype=normtype)
+        self.Ngauss         = Nmin
+        self.sigma          = sigma_min
+        self.rms2d          = rms
+        print 'End finding minimum N and sigma'
+        print 'N =', Nmin,' sigma =', sigma_min 
+        return
+    
     def cauchy_2d_fit_fix_N0(self, dN=200, dgamma=0.5, normtype=2):
         """
         Fit the 2D cross section of data points with Cauchy distribution
@@ -422,6 +555,61 @@ class penelopedbase(object):
         self.Ncauchy        = N0*2.*np.pi*(gamma_min**2)
         return
     
+    def mix_2d_fit(self):
+        """
+        Fit the 2D cross section of data points with Gauss distribution
+        """
+        xgg, ygg= np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
+        print 'Finding minimum N and sigma'
+        # Coarsest grid
+        N0Arr   = np.arange(10)*5000. + 5000.
+        sigmaArr= np.arange(5)*.1 + 3.8
+        pArr    = np.arange(10)*.1 + .1
+        # CArr    = 
+        pmin, Cmin, Nmin, sigma_min, rms = _mix_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, pArr, CArr, normtype=normtype)
+        # # Coarsest grid
+        # N0Arr   = np.arange(10)*1000. + Nmin - 2500.
+        # sigmaArr= np.arange(50)*1. + sigma_min - 1.
+        # Nmin, sigma_min, rms= _gauss_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, normtype=normtype)
+        # # finest grid
+        # N0Arr   = np.arange(10)*dN + Nmin - 500.
+        # sigmaArr= np.arange(50)*dsigma + sigma_min - 0.5
+        # Nmin, sigma_min, rms= _gauss_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, normtype=normtype)
+        # self.Ngauss         = Nmin
+        # self.sigma          = sigma_min
+        # self.rms2d          = rms
+        print 'End finding minimum N and sigma'
+        print 'N =', Nmin,' sigma =', sigma_min 
+        return
+    
+    def exprd_2d_fit(self, normtype=2):
+        """
+        Fit the 2D cross section of data points with Gauss distribution
+        """
+        xgg, ygg= np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
+        print 'Finding minimum N and C'
+        # Coarsest grid
+        N0Arr   = np.arange(10)*5000. + 5000.
+        CArr    = np.arange(50)*1. +1.
+        Nmin, Cmin, rms = _exprd_2d_fit(xgg, ygg, self.nArr, N0Arr, CArr, normtype=normtype)
+        # CArr    = 
+        # pmin, Cmin, Nmin, sigma_min, rms = _mix_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, pArr, CArr, normtype=normtype)
+        # # Coarsest grid
+        # N0Arr   = np.arange(10)*1000. + Nmin - 2500.
+        # sigmaArr= np.arange(50)*1. + sigma_min - 1.
+        # Nmin, sigma_min, rms= _gauss_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, normtype=normtype)
+        # # finest grid
+        # N0Arr   = np.arange(10)*dN + Nmin - 500.
+        # sigmaArr= np.arange(50)*dsigma + sigma_min - 0.5
+        # Nmin, sigma_min, rms= _gauss_2d_fit(xgg, ygg, self.nArr, N0Arr, sigmaArr, normtype=normtype)
+        self.Nexp           = Nmin
+        self.C              = Cmin
+        self.rms2d          = rms
+        print 'End finding minimum N and C'
+        print 'N =', Nmin,' sigma =', Cmin 
+        return
+    
+    
     def plot_cauchy_2d_fit(self, showfig=True, outfname=None):
         plotx, ploty = np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
         # 
@@ -431,6 +619,56 @@ class penelopedbase(object):
         
         ax      = plt.subplot(221)
         nArr_pre= pdf*self.Ncauchy
+        Nmax    = self.nArr.max()
+        plt.pcolormesh(plotx, ploty, nArr_pre, shading='gouraud', vmax=Nmax/2, vmin=0., cmap='hot_r')
+        plt.xlabel('X (nm)', fontsize=10)
+        plt.ylabel('Y (nm)', fontsize=10)
+        plt.axis([self.xgrid[0], self.xgrid[-1], self.ygrid[0], self.ygrid[-1]], 'scaled')
+        cb=plt.colorbar()
+        cb.set_label('Number of photons', fontsize=10)
+
+        ax = plt.subplot(222)
+        plt.pcolormesh(plotx, ploty, self.nArr, shading='gouraud', vmax=Nmax/2, vmin=0., cmap='hot_r')
+        plt.xlabel('X (nm)', fontsize=10)
+        plt.ylabel('Y (nm)', fontsize=10)
+        plt.axis([self.xgrid[0], self.xgrid[-1], self.ygrid[0], self.ygrid[-1]], 'scaled')
+        cb=plt.colorbar()
+        cb.set_label('Number of photons', fontsize=10)
+        
+        ax = plt.subplot(223)
+        nyArr   = self.nArr[plotx==0.]
+        nyArr2  = nArr_pre[plotx==0.]
+        plt.plot(self.ygrid, nyArr, 'b-', lw=1, label='scatter, x = 0 nm')
+        plt.plot(self.ygrid, nyArr2, 'k--', lw=2, label='best, x = 0 nm')
+        # plt.xlim(-50, 50)
+        plt.xlim(-100, 100)
+        plt.legend(loc=0, fontsize=10)
+        plt.title('X = 0 nm', fontsize=30)
+        
+        ax = plt.subplot(224)
+        nxArr   = self.nArr[ploty==0.]
+        nxArr2  = nArr_pre[ploty==0.]
+        plt.plot(self.xgrid, nxArr, 'b-', lw=1, label='scatter, y = 0 nm')
+        plt.plot(self.xgrid, nxArr2, 'k--', lw=2, label='best, y = 0 nm')
+
+        plt.xlim(-100, 100)
+        # plt.xlim(-50, 50)
+        plt.title('Y = 0 nm', fontsize=30)
+        plt.legend(loc=0, fontsize=10)
+        if outfname !=None:
+            plt.savefig(outfname, format='png')
+        if showfig: plt.show()
+        
+        
+    def plot_gauss_2d_fit(self, showfig=True, outfname=None):
+        plotx, ploty = np.meshgrid(self.xgrid, self.ygrid, indexing='ij')
+        # 
+        # # # #
+        pdf     = np.exp( -0.5*((plotx/self.sigma)**2) - 0.5*((ploty/self.sigma)**2) ) / 2./np.pi/(self.sigma**2)
+        fig     = plt.figure(figsize=(12,8))
+        
+        ax      = plt.subplot(221)
+        nArr_pre= pdf*self.Ngauss
         Nmax    = self.nArr.max()
         plt.pcolormesh(plotx, ploty, nArr_pre, shading='gouraud', vmax=Nmax/2, vmin=0., cmap='hot_r')
         plt.xlabel('X (nm)', fontsize=10)

@@ -7,9 +7,10 @@ dbase   = database.penelopedbase()
 dbase.read_psf(infname)
 dbase.count_r_bins( rmax=400., Nr=401)
 
-r   = dbase.rArr[dbase.rArr<75]
-y   = dbase.rbins_norm[dbase.rArr<75]
+r   = dbase.rArr[dbase.rArr>25]
+y   = dbase.rbins_norm[dbase.rArr>25]
 a, b = np.polyfit(r, np.log(y), 1)
+print 1./a, b
 # 
 # rms = 1e9
 # for a in np.arange(1000.):
