@@ -5,7 +5,7 @@ infname = 'from_Amrita/Au_100nm/'+pfx+'/psf-test.dat'
 dbase   = database.penelopedbase()
 dbase.read_psf(infname)
 dbase.count_r_bins( rmax=800., Nr=401)
-dbase.count_r_bins_cauchy_2d(Nt=54929.176751690742/2., gamma=25., rmax=800., Nr=401, plotfig=False)
+dbase.count_r_bins_cauchy_2d(Nt=54929.176751690742/2., gamma=5., rmax=800., Nr=401, plotfig=False)
 
 
 
@@ -20,7 +20,7 @@ ax.tick_params(axis='x', labelsize=20)
 ax.tick_params(axis='y', labelsize=20)
 # plt.legend(loc=0, fontsize=20, numpoints=1)
 # plt.yscale('log', nonposy='clip')
-plt.xlim(0, 400.)
+plt.xlim(0, 100.)
 # plt.ylim(5e-3, 0.5)
 # plt.ylim(1, 1e4)
 plt.show()
