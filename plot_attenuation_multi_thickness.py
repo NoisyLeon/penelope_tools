@@ -9,7 +9,7 @@ ax=plt.subplot()
 ind     = np.arange(7)
 tlst    = 10**ind/1e7
 i       = 0
-elem    = 'Al'
+elem    = 'Ni'
 mu      = (xraylib_func.get_mu_np(energy=eArr, elesym=elem))[0,:]
 
 for t in tlst:

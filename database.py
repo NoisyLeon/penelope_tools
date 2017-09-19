@@ -818,8 +818,9 @@ class penelopedbase(object):
         pdf     = _cauchy_2d(self.xgrid, self.ygrid, gamma=self.gamma_cauchy, mux=0., muy=0.)
         
     def hist(self, repeat=6250, bins=7500, plotfig=False):
-        ax=plt.subplot(211)
-        n, bins, patches = plt.hist(np.repeat(self.energy, repeat), bins=bins, normed=False, facecolor='blue', edgecolor='blue')
+        # ax=plt.subplot(211)
+        # n, bins, patches = plt.hist(np.repeat(self.energy, repeat), bins=bins, normed=False, facecolor='blue', edgecolor='blue')
+        n, bins, patches = plt.hist(self.energy, bins=bins, normed=False, facecolor='blue', edgecolor='blue')
         if plotfig:
             plt.ylabel('Photons/sec', fontsize=30)
             # plt.xlabel('Energy (eV)', fontsize=30)
@@ -832,7 +833,10 @@ class penelopedbase(object):
             plt.grid(True)
         else: plt.close()
         self.ebins  = (bins[1:] + bins[:-1])/2 # convert to keV
-        self.Np     = n 
+        self.Np     = n*repeat/1000.
+        self.Np_out = n.copy()*repeat/1000.
+        # self.Np     = n*repeat
+        # self.Np_out = n.copy()
         return
     
     def decay_spec(self, elesym, t, plotfig=True, density=None):
@@ -842,7 +846,7 @@ class penelopedbase(object):
         else:
             mu  = xraylib_func.get_mu_np_CP(energy=self.ebins/1000., chemicalform=elesym, density=density)
         r   = np.exp(-mu*t)
-        self.Np_out= r*self.Np
+        self.Np_out= r*self.Np_out
         if plotfig:
             ax=plt.subplot()
             plt.plot(self.ebins, self.Np_out)
@@ -854,6 +858,28 @@ class penelopedbase(object):
             plt.ylim(1e4, 1e8)
             plt.grid(True)
             plt.show()
+    
+    def decay_spec_CP(self, chelst, wlst, denlst, t):
+        N           = len(chelst)
+        energy      = self.ebins/1000.
+        muorhoArr   = np.zeros(energy.size)
+        density     = 0
+        for i in xrange(N):
+            tempArr     = xraylib_func.get_muoverrho_np_CP(energy=energy, chemicalform=chelst[i])
+            muorhoArr   += wlst[i] * tempArr
+            density     += wlst[i] * denlst[i]
+        mu  = muorhoArr * density
+        t   = t/1e7
+        r   = np.exp(-mu*t)
+        self.Np_out= r*self.Np_out
+        
+    
+            
+    def count_hard_Xray(self, cE, dE):
+        cbins   = self.ebins
+        ind     = (cbins > (cE-dE))*( cbins<(cE+dE) )
+        # imax    = (self.Np_out[ind]).argmax()
+        return (self.Np_out[ind]).max()
     
     
     ####

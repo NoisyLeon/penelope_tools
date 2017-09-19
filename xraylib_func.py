@@ -27,12 +27,38 @@ def get_mu_np(energy, elesym=None, elenumb=None):
     mu = xraylib_np.CS_Total(np.array([elenumb]), energy) * xraylib.ElementDensity(elenumb)
     return mu
 
+def get_muoverrho_np(energy, elesym=None, elenumb=None):
+    """
+    Compute attenuation coefficients for a energy array given an element
+    ======================================================================
+    Parameters:
+    energy  - input energy array (type of np.ndarray, unit: keV)
+    elesym  - element symbol
+    elenumb - element's atomic number
+    ======================================================================
+    """
+    if elesym == None and elenumb ==None:
+        raise ValueError('Element symbol or number need to be specified!')
+    if elesym!=None: elenumb = xraylib.SymbolToAtomicNumber(elesym)
+    muoverrho = xraylib_np.CS_Total(np.array([elenumb]), energy) 
+    return muoverrho
+
 def get_mu_np_CP(energy, chemicalform, density):
     muArr = np.array([])
     for e in energy:
         mu = xraylib.CS_Total_CP(chemicalform, e) *density
         muArr=np.append(muArr, mu)
     return muArr
+
+def get_muoverrho_np_CP(energy, chemicalform):
+    muorhoArr = np.array([])
+    for e in energy:
+        muoverrho = xraylib.CS_Total_CP(chemicalform, e) 
+        muorhoArr=np.append(muorhoArr, muoverrho)
+    return muorhoArr
+
+
+
 
 # 
 # print 'Hf', get_mu(elesym='Hf', energy=1.)
