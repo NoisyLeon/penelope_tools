@@ -6,10 +6,16 @@ dbase   = database.penelopedbase()
 dbase.read_psf(infname)
 
 
-dbase.hist(plotfig=True)
+# pfx     = 'theta-00'
+# infname = '/work2/leon/Au_100nm/'+pfx+'/psf-test-short.bin'
+# dbase   = database.penelopedbase()
+# dbase.read_psf_binary(infname)
 
-elesym = 'Ni'
-dbase.decay_spec(elesym=elesym, t=1e3, plotfig=False)
+
+dbase.hist(plotfig=True, repeat=1)
+
+# elesym = 'Ni'
+# dbase.decay_spec(elesym=elesym, t=1e3, plotfig=False)
 # x = 0.2
 # rho = 2.329+3.493*x-0.499*(x**2)
 # print rho

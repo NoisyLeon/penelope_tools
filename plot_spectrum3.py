@@ -6,6 +6,8 @@ dbase   = database.penelopedbase()
 dbase.read_psf(infname)
 
 
+
+
 dbase.hist(repeat=6250, bins=15000, plotfig=False)
 
 print '=========== Input photon counts ==========='

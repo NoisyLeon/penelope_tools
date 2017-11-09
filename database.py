@@ -337,6 +337,30 @@ class penelopedbase(object):
         self.energy = inArr[:, 1]
         return
     
+    def read_psf_binary(self, infname, factor=1e7):
+        with open(infname, 'rb') as fid:
+            l0          = fid.readline()
+            rec_count   = int(l0.split()[0])
+            dtype       = np.fromfile(fid, dtype=np.int8, count = rec_count)
+            energy      = np.fromfile(fid, dtype=np.float32, count = rec_count)
+            pos         = np.fromfile(fid, dtype=np.float64, count = rec_count*3)
+            trajectories= np.fromfile(fid, dtype=np.float64, count = rec_count*3)
+        self.energy = energy
+        pos         = pos.reshape(rec_count, 3)
+        self.z      = -pos[:, 0]*factor
+        self.x      = pos[:, 1]*factor
+        self.y      = pos[:, 2]*factor
+        # 
+        # pos         = pos.reshape(3, rec_count)
+        # self.x      = pos[0, :]*factor
+        # self.y      = pos[1, :]*factor
+        # self.z      = pos[2, :]*factor
+        # self.x      = pos[:rec_count]*factor
+        # self.y      = pos[rec_count:2*rec_count]*factor
+        # self.z      = pos[2*rec_count:]*factor
+        return
+
+    
     def read_mat(self, infname):
         """
         Read phase-space file
@@ -818,19 +842,22 @@ class penelopedbase(object):
         pdf     = _cauchy_2d(self.xgrid, self.ygrid, gamma=self.gamma_cauchy, mux=0., muy=0.)
         
     def hist(self, repeat=6250, bins=7500, plotfig=False):
-        # ax=plt.subplot(211)
+        ax=plt.subplot()
         # n, bins, patches = plt.hist(np.repeat(self.energy, repeat), bins=bins, normed=False, facecolor='blue', edgecolor='blue')
         n, bins, patches = plt.hist(self.energy, bins=bins, normed=False, facecolor='blue', edgecolor='blue')
         if plotfig:
-            plt.ylabel('Photons/sec', fontsize=30)
-            # plt.xlabel('Energy (eV)', fontsize=30)
-            ax.tick_params(axis='x', labelsize=20)
-            ax.tick_params(axis='y', labelsize=20)
-            plt.title('Input Spectrum', fontsize=40)
-            plt.yscale('log', nonposy='clip')
-            plt.ylim(1e4, 1e8)
-            dbins=bins[0] - bins[1]
-            plt.grid(True)
+            try:
+                plt.ylabel('Photons/sec', fontsize=30)
+                plt.xlabel('Energy (eV)', fontsize=30)
+                ax.tick_params(axis='x', labelsize=20)
+                ax.tick_params(axis='y', labelsize=20)
+                plt.title('Input Spectrum', fontsize=40)
+                plt.yscale('log', nonposy='clip')
+                plt.ylim(1e2, 1e8)
+                dbins=bins[0] - bins[1]
+                plt.grid(True)
+            except:
+                pass
         else: plt.close()
         self.ebins  = (bins[1:] + bins[:-1])/2 # convert to keV
         self.Np     = n*repeat/1000.
