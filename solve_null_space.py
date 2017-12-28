@@ -6,6 +6,7 @@ from scipy.optimize import lsq_linear
 import random
 
 eArr    = 8200. + np.arange(50.) * 106.
+# eArr    = np.array([8495., 9628, 9711, 11443, 11587, 13423])
 eArr    /= 1000.
 
 # eArr    = np.array([8495, 9628, 9713, 11442, 11587, 13422])/1000.
@@ -94,13 +95,24 @@ for j in xrange(11):
 # 
 #
 ax=plt.subplot()
+
 im  = plt.pcolormesh(CMat.T, cmap='inferno_r', vmin=0., vmax=1.)
-plt.xticks(np.arange(11))
-plt.yticks(np.arange(11))
+plt.xticks(np.arange(11)+0.5)
+plt.yticks(np.arange(11)+0.5)
+plt.ylabel('basis element', fontsize=20)
+plt.xlabel('target element', fontsize=20)
+plt.title('Hard X-ray and Bremsstrahlung representation ', fontsize=30)
 ax.set_xticklabels(elemlst)
 ax.tick_params(axis='x', labelsize=20)
 ax.set_yticklabels(elemlst)
 ax.tick_params(axis='y', labelsize=20)
+
+# for tick in ax.xaxis.get_major_ticks():
+#     tick.tick1line.set_markersize(0)
+#     tick.tick2line.set_markersize(0)
+#     tick.label1.set_horizontalalignment('center')
+    
+    
 plt.colorbar(im)
 plt.xlim(0, 11)
 plt.ylim(0, 11)
@@ -118,5 +130,5 @@ plt.yscale('log', nonposy='clip')
 ax.tick_params(axis='x', labelsize=20)
 ax.tick_params(axis='y', labelsize=20)
 plt.ylabel('misfit', fontsize=30)
-# plt.title('Representing ', fontsize=40)
+plt.title('Hard X-ray representation ', fontsize=40)
 plt.show()
